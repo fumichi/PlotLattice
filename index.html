@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>PlotLattice</title>
+    <style>
+        .canvas {
+            width: 550px;
+            height: 550px;
+        }
+    </style>
+    <script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML">
+        MathJax.Hub.Config({
+            tex2jax: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                processEscapes: true
+            },
+            "HTML-CSS": { matchFontHeight: false },
+            displayAlign: "left",
+            displayIndent: "2em"
+        });
+    </script>
+</head>
+
+<body>
+    <table>
+        <tr>
+            <td>
+                <b> Real Lattice</b>
+            </td>
+            <td>
+                <b>
+                    Reciprocal Lattice
+                </b>
+                <!--<div style="text-align: right;">左：回転&nbsp;中：ズーム&nbsp;右：パン</div>-->
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="canvas" id="canvas01"></div>
+            </td>
+            <td>
+                <div class="canvas" id="canvas02"></div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <table width="550">
+                    <tr>
+                        <td>
+                            <div id="a">
+                                a=
+                                <input type="text" name="a_val" size="3" value="10">
+                                <input type="range" name="a_slider" min="0" max="20" step="0.001" value="10">
+                            </div>
+                        </td>
+                        <td>
+                            <div id="alpha">
+                                &#945;=
+                                <input type="text" name="alpha_val" size="3" value="90">&deg;
+                                <input type="range" name="alpha_slider" min="0" max="180" step="0.001" value="90">
+                            </div>
+
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div id="b">
+                                b=
+                                <input type="text" name="b_val" size="3" value="10">
+                                <input type="range" name="b_slider" min="0" max="20" step="0.001" value="10">
+                            </div>
+
+                        </td>
+                        <td>
+                            <div id="beta">
+                                &#946;=
+                                <input type="text" name="beta_val" size="3" value="90">&deg;
+                                <input type="range" name="beta_slider" min="0" max="180" step="0.001" value="90">
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div id="c">
+                                c=
+                                <input type="text" name="c_val" size="3" value="10">
+                                <input type="range" name="c_slider" min="0" max="20" step="0.001" value="10">
+                            </div>
+                        </td>
+                        <td>
+                            <div id="gamma">
+                                &#947;=
+                                <input type="text" name="gamma_val" size="3" value="90">&deg;
+                                <input type="range" name="gamma_slider" min="0" max="180" step="0.001" value="90">
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            <div id="viewpoint">
+                                View Point:
+                                <input type="button" name="a" value="a">
+                                <input type="button" name="b" value="b">
+                                <input type="button" name="c" value="c">
+                                <input type="button" name="a*" value="a*">
+                                <input type="button" name="b*" value="b*">
+                                <input type="button" name="c*" value="c*">
+                            </div>
+                        </td>
+
+                    </tr>
+                </table>
+            </td>
+            <td>
+                <table width="300">
+                    <tr>
+                        <td>
+                            $ \ V= \mathbf{a} \cdot (\mathbf{b} \times \mathbf{c})  $
+                        </td>
+                        <td>V=</td>
+                        <td id="realvol">1000.0</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            $ \mathbf{a}*=\ \frac{ \mathbf{b} \times \mathbf{c}}{V}  $
+                        </td>
+                        <td>a*=</td>
+                        <td id="a_sta">0.10000</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            $ \mathbf{b}*=\ \frac{ \mathbf{c} \times \mathbf{a}}{V}  $
+                        </td>
+                        <td>b*=</td>
+                        <td id="b_sta">0.10000</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            $ \mathbf{c}*=\ \frac{ \mathbf{a} \times \mathbf{b}}{V}  $
+                        </td>
+                        <td>c*=</td>
+                        <td id="c_sta">0.10000</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+    <!------------以下、スクリプト-------------------------------------------------------------------------->
+    <script src="jquery-1.11.3.min.js"></script>
+    <script src="three.min.js"></script>
+    <script src="helvetiker_regular.typeface.js"></script>
+    <script src="TrackballControls.js"></script>
+    <script src="script.js"></script>
+    <script type="text/javascript">
+        /* カメラ回転 */
+        var rotateCamera = function (i, dir) {
+            /* 回転操作 */
+            //初期方向 up (規格化)
+            var up = new THREE.Vector3(canvaslist[i].camera.position.x, canvaslist[i].camera.position.y, canvaslist[i].camera.position.z).normalize();
+            //向けたい方向 dir (規格化済み)
+            //回転軸 nor = up × dir
+            var nor = new THREE.Vector3();
+            nor.crossVectors(up, dir).normalize();
+
+            //回転角 θ
+            var dot = up.dot(dir);
+            var rad = Math.acos(dot);
+
+            //クォータニオン生成
+            var q = new THREE.Quaternion();
+            q.setFromAxisAngle(nor, rad);
+
+            //適用
+            canvaslist[i].camera.position.applyQuaternion(q);
+            canvaslist[i].camera.up.applyQuaternion(q);
+
+
+        };
+        /* カメラリセット */
+        var reset = function () {
+            for (var i = 0; i < canvaslist.length; i = i + 1) {
+                canvaslist[i].controls.reset();
+                var range = 15;
+                canvaslist[i].camera.left = -range;
+                canvaslist[i].camera.right = range;
+                canvaslist[i].camera.top = range;
+                canvaslist[i].camera.bottom = -range;
+                canvaslist[i].camera.updateProjectionMatrix();
+            }
+        };
+        /* ボタンが押された時 */
+        $("input[type=button]").click(function () {
+            reset();
+            var val = $(this).val();
+            var dir;
+            switch (val) {
+                case 'a': dir = new THREE.Vector3().copy(lattice.real.A).normalize(); break;
+                case 'b': dir = new THREE.Vector3().copy(lattice.real.B).normalize(); break;
+                case 'c': dir = new THREE.Vector3().copy(lattice.real.C).normalize(); break;
+                case 'a*': dir = new THREE.Vector3().copy(lattice.recipro.A).normalize(); break;
+                case 'b*': dir = new THREE.Vector3().copy(lattice.recipro.B).normalize(); break;
+                case 'c*': dir = new THREE.Vector3().copy(lattice.recipro.C).normalize(); break;
+                default: break;
+            }
+            rotateCamera(0, dir);
+        });
+        /* テキストを出力する */
+        var setVal = function () {
+            $("#realvol").text((lattice.real.Vol).toPrecision(5));
+            $("#a_sta").text((lattice.a_sta).toPrecision(5));
+            $("#b_sta").text((lattice.b_sta).toPrecision(5));
+            $("#c_sta").text((lattice.c_sta).toPrecision(5));
+
+        };
+        /* テキストボックスの値を読み取る */
+        var getForm = function () {
+            lattice.a = $("#a").children('input[type=text]').val();
+            lattice.b = $("#b").children('input[type=text]').val();
+            lattice.c = $("#c").children('input[type=text]').val();
+            lattice.alpha = $("#alpha").children('input[type=text]').val();
+            lattice.beta = $("#beta").children('input[type=text]').val();
+            lattice.gamma = $("#gamma").children('input[type=text]').val();
+        };
+        /* スライドバー変更中（ドラッグ中） */
+        $('input[type=range]').on('input', function () {
+            var val = $(this).val();
+            $(this).prev().val(val);
+            getForm();
+            lattice.calcRealAxes();
+            lattice.setRealAxes();
+            lattice.calcReciproAxes();
+            lattice.setReciproAxes();
+            setVal();
+        });
+        /* テキストボックス変更後 */
+        $('input[type=text]').change(function () {
+            var val = $(this).val();
+            $(this).next().val(val);
+            $(this).next().attr("max", 2 * val);
+            getForm();
+            lattice.calcRealAxes();
+            lattice.setRealAxes();
+            lattice.calcReciproAxes();
+            lattice.setReciproAxes();
+            setVal();
+        });
+    </script>
+</body>
+</html>
